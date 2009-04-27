@@ -10,5 +10,6 @@ public final class FlickrTestConstants
 	public static final String PREF_FLICKRPERMS = "FlickrPerms";
 	public static final String PREF_FLICKRFNAME = "FlickrFullname";
 	public static final String PREF_FLICKRUNAME = "FlickrUsername";
+	public static final String PREF_LANG = "Languge";
 	
 }

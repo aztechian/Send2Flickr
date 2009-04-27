@@ -117,7 +117,6 @@ public class FlickrResponseParser
 
 	public class FlickrAuthHandler extends FlickrTestXMLHandler
 	{
-		boolean status = true;
 		StringBuffer charData = null;
 		FlickrAuthInfo fai = null;
 		private List<FlickrAuthInfo>	results	= new ArrayList<FlickrAuthInfo>();
@@ -125,12 +124,18 @@ public class FlickrResponseParser
 		public void startElement( String uri, String localName, String name, Attributes attributes )
 				throws SAXException
 		{
-			if( "rsp".equals( name ) && "fail".equals( attributes.getValue( 0 ) ) ) status = false;
-			if( !status )
+			if( "rsp".equals( name ) && "fail".equals( attributes.getValue( 0 ) ) ) 
+			{
+				fai = new FlickrAuthInfo();
+				fai.setError( true );
+			}
+			if( fai != null && fai.isError() )
 			{
 				if( "err".equals( name ) )
-					throw new SAXException( "Error from flickr (" + attributes.getValue( "code" ) + "). "
-							+ attributes.getValue( "msg" ) );
+				{
+					fai.setErrCode( Integer.parseInt( attributes.getValue( "code" ) ) );
+					fai.setErrMsg( attributes.getValue( "msg" ) );
+				}
 			}
 			else
 			{

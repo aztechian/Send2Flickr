@@ -40,7 +40,7 @@ public class FlickrAuthenticationDialog extends JDialog
 	 */
 	public FlickrAuthenticationDialog()
 	{
-		labels = ResourceBundle.getBundle( "LabelsBundle", FlickrPanel.getCurrentLocale() );
+		labels = ResourceBundle.getBundle( "LabelsBundle" );
 
 		cards = new JPanel( new CardLayout() );
 		cards.add( getAuth1Panel(), "Auth1" );

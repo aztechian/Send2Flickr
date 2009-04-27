@@ -2,11 +2,10 @@ package net.imartin.flickr;
 
 public class FlickrAuthInfo
 {
-	private String	token;
-	private String	perms;
-	private String	nsid;
-	private String	username;
-	private String	fullname;
+	private String	token, perms, nsid, username, fullname = "";
+	private boolean error = true;
+	private String errMsg = "";
+	private int errCode = 0;
 
 	public String getToken()
 	{
@@ -63,4 +62,34 @@ public class FlickrAuthInfo
 		return "Token: " + getToken() + "\nPerms: " + getPerms() + "\nNSID: " + getNsid() + "\nUsername: "
 				+ getUsername() + "\nFullname: " + getFullname();
 	}
+
+	public boolean isError()
+    {
+    	return error;
+    }
+
+	public void setError( boolean error )
+    {
+    	this.error = error;
+    }
+
+	public String getErrMsg()
+    {
+    	return errMsg;
+    }
+
+	public void setErrMsg( String errMsg )
+    {
+    	this.errMsg = errMsg;
+    }
+
+	public int getErrCode()
+    {
+    	return errCode;
+    }
+
+	public void setErrCode( int errCode )
+    {
+    	this.errCode = errCode;
+    }
 }

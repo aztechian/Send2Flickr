@@ -19,7 +19,13 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Observable;
+import java.util.Observer;
 import java.util.ResourceBundle;
+import java.util.Vector;
+import java.util.prefs.Preferences;
+
+import javax.swing.AbstractButton;
 import javax.swing.ButtonGroup;
 import javax.swing.DefaultListCellRenderer;
 import javax.swing.DefaultListModel;
@@ -31,15 +37,18 @@ import javax.swing.JList;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JProgressBar;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JScrollPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
+
 import net.imartin.flickr.xml.FlickrResponseParser;
 import net.imartin.flickr.xml.FlickrResponseParser.HandlerType;
 
-public class FlickrPanel extends JFrame
+
+public class FlickrPanel extends JFrame implements Observer
 {
 
 	class CustomCellRenderer extends DefaultListCellRenderer
@@ -47,7 +56,7 @@ public class FlickrPanel extends JFrame
 		private static final long	serialVersionUID	= 2124023877274957790L;
 
 		public Component getListCellRendererComponent( JList list, Object value, int index, boolean isSelected,
-				boolean cellHasFocus )
+		        boolean cellHasFocus )
 		{
 			super.getListCellRendererComponent( list, value, index, isSelected, cellHasFocus );
 			if( value instanceof FlickrImageInfo )
@@ -56,7 +65,7 @@ public class FlickrPanel extends JFrame
 				this.setIcon( fii.getImage() );
 				this.setForeground( Color.GRAY );
 				this.setText( ( fii.getTitle().length() > 10 ) ? fii.getTitle().substring( 0, 8 ) + "..." : fii
-						.getTitle() );
+				        .getTitle() );
 			}
 			return this;
 		}
@@ -80,9 +89,8 @@ public class FlickrPanel extends JFrame
 			try
 			{
 				String location = String.format(
-								"http://api.flickr.com/services/rest/?method=flickr.interestingness.getList&api_key=%s&extras=owner_name,date_taken&per_page=%s&page=1",
-								FlickrPanel.this.labels.getString( "flickr_api_key" ), getImageCountCombo()
-										.getSelectedItem() );
+				                "http://api.flickr.com/services/rest/?method=flickr.interestingness.getList&api_key=%s&extras=owner_name,date_taken&per_page=%s&page=1",
+				                FlickrPanel.this.labels.getString( "flickr_api_key" ), getImageCountCombo().getSelectedItem() );
 				URL url = new URL( location );
 				// System.out.println("Requesting URL: " + location);
 
@@ -143,29 +151,36 @@ public class FlickrPanel extends JFrame
 			@Override
 			public void run()
 			{
-				FlickrPanel panel = new FlickrPanel();
-				panel.setVisible( true );
+				new FlickrPanel();
 			}
 		} );
 	}
 
-	private static Locale			currentLocale		= Locale.ENGLISH;
-	private JButton					fetchButton			= null;
-	private ResourceBundle			labels				= ResourceBundle.getBundle( "LabelsBundle" );
-	private JScrollPane				sideScroll			= null;
-	private JList					sideList			= null;
-	private JProgressBar			progBar				= null;
-	private JComboBox				imageCountCombo		= null;
-	private JMenuBar				menuBar				= null;
+	private JButton	               fetchButton	     = null;
+	private ResourceBundle	       labels	         = null;
+	private JScrollPane	           sideScroll	     = null;
+	private JList	               sideList	         = null;
+	private JProgressBar	       progBar	         = null;
+	private JComboBox	           imageCountCombo	 = null;
+	private JMenuBar	           menuBar	         = null;
 	private EditMenuActionListener	editMenuListener	= new EditMenuActionListener();
+	private Preferences	           prefs	         = null;
 
 	public FlickrPanel()
 	{
+		prefs = Preferences.userNodeForPackage( getClass() );
+		String token = prefs.get( FlickrTestConstants.PREF_FLICKRTOKEN, null );
+		Localizer.getLocalizer();
+		labels = ResourceBundle.getBundle( "LabelsBundle" );
+		
 		init();
-		initTexts();
-		this.setPreferredSize( new Dimension( 600, 400 ) );
+		this.setPreferredSize( new Dimension( 800, 600 ) );
 		this.pack();
 		this.setDefaultCloseOperation( JFrame.EXIT_ON_CLOSE );
+		this.setVisible( true );
+		if( token == null && !FlickrAuthorize.checkToken( token ) )
+			JOptionPane.showMessageDialog( this, "Exising token is no longer valid.\nYou must re-authorize before uploading.", "Token no longer valid", JOptionPane.INFORMATION_MESSAGE );
+		
 	}
 
 	private JButton getFetchButton()
@@ -188,7 +203,7 @@ public class FlickrPanel extends JFrame
 						public void propertyChange( PropertyChangeEvent evt )
 						{
 							if( "state".equals( evt.getPropertyName() )
-									&& SwingWorker.StateValue.DONE == evt.getNewValue() )
+							        && SwingWorker.StateValue.DONE == evt.getNewValue() )
 							{
 								fetchButton.setEnabled( true );
 								fetchButton.setText( labels.getString( "fetch" ) );
@@ -235,57 +250,62 @@ public class FlickrPanel extends JFrame
 
 	private JMenuBar getMenu()
 	{
+		//TODO move this to its own "MenuBar" class. That way it can handle locale updates on its own
 		if( menuBar == null )
 		{
 			JMenu tempMenu;
 			JMenuItem tempItem;
 			menuBar = new JMenuBar();
 
-			tempMenu = new JMenu( "File" );
+			tempMenu = new JMenu( labels.getString( "menu_file" ) );
 			tempMenu.setMnemonic( KeyEvent.VK_F );
 			menuBar.add( tempMenu );
 
-			tempItem = new JMenuItem( "New" );
+			tempItem = new JMenuItem( labels.getString( "menu_file_new" ) );
 			tempMenu.add( tempItem );
 
-			tempMenu = new JMenu( "Edit" );
+			tempMenu = new JMenu( labels.getString( "menu_edit" ) );
 			tempMenu.setMnemonic( KeyEvent.VK_E );
 			menuBar.add( tempMenu );
 
-			tempItem = new JMenu( "Select Language" );
+			tempItem = new JMenu( labels.getString( "menu_edit_lang" ) );
 			ButtonGroup group = new ButtonGroup();
-			JRadioButtonMenuItem tempRadioButton = new JRadioButtonMenuItem( "English", true );
+			JRadioButtonMenuItem tempRadioButton = new JRadioButtonMenuItem( labels.getString( "lang_en" ), true );
 			tempRadioButton.setActionCommand( "LANG_en" );
 			tempRadioButton.addActionListener( editMenuListener );
 			group.add( tempRadioButton );
 			tempItem.add( tempRadioButton );
 
-			tempRadioButton = new JRadioButtonMenuItem( "French" );
+			tempRadioButton = new JRadioButtonMenuItem( labels.getString( "lang_fr" ) );
 			tempRadioButton.setActionCommand( "LANG_fr" );
 			tempRadioButton.addActionListener( editMenuListener );
 			group.add( tempRadioButton );
 			tempItem.add( tempRadioButton );
 
-			tempRadioButton = new JRadioButtonMenuItem( "German" );
+			tempRadioButton = new JRadioButtonMenuItem( labels.getString( "lang_de" ) );
 			tempRadioButton.setActionCommand( "LANG_de" );
 			tempRadioButton.addActionListener( editMenuListener );
 			group.add( tempRadioButton );
 			tempItem.add( tempRadioButton );
 
-			tempRadioButton = new JRadioButtonMenuItem( "Portuguese" );
+			tempRadioButton = new JRadioButtonMenuItem( labels.getString( "lang_pt" ) );
 			tempRadioButton.setActionCommand( "LANG_pt" );
 			tempRadioButton.addActionListener( editMenuListener );
 			group.add( tempRadioButton );
 			tempItem.add( tempRadioButton );
 
-			tempRadioButton = new JRadioButtonMenuItem( "Arabic" );
+			tempRadioButton = new JRadioButtonMenuItem( labels.getString( "lang_ar" ) );
 			tempRadioButton.setActionCommand( "LANG_ar" );
 			tempRadioButton.addActionListener( editMenuListener );
 			group.add( tempRadioButton );
 			tempItem.add( tempRadioButton );
 			tempMenu.add( tempItem );
 
-			tempItem = new JMenuItem( "Authenticate..." );
+			String authStatus = prefs.get( FlickrTestConstants.PREF_FLICKRUNAME, null );
+			if( authStatus == null )
+				tempItem = new JMenuItem( labels.getString( "menu_edit_auth" ) );
+			else
+				tempItem = new JMenuItem( labels.getString( "menu_edit_deauth" ) + " " + authStatus);
 			tempItem.setActionCommand( "AUTH" );
 			tempItem.addActionListener( editMenuListener );
 			tempMenu.add( tempItem );
@@ -332,7 +352,7 @@ public class FlickrPanel extends JFrame
 		java.awt.Container cp = this.getContentPane();
 		cp.setLayout( new GridBagLayout() );
 		GridBagConstraints defaultGBC = new GridBagConstraints( 0, 0, 1, 1, 0, 0, GridBagConstraints.WEST,
-				GridBagConstraints.NONE, new Insets( 2, 2, 2, 2 ), 0, 0 );
+		        GridBagConstraints.NONE, new Insets( 2, 2, 2, 2 ), 0, 0 );
 		GridBagConstraints constraints = (GridBagConstraints)defaultGBC.clone();
 
 		constraints.weighty = 1.0;
@@ -357,13 +377,6 @@ public class FlickrPanel extends JFrame
 		cp.add( getProgBar(), constraints );
 	}
 
-	private void initTexts()
-	{
-		labels = ResourceBundle.getBundle( "LabelsBundle", getCurrentLocale() );
-		getFetchButton().setText( labels.getString( "fetch" ) );
-		this.setTitle( labels.getString( "title" ) );
-	}
-
 	private class EditMenuActionListener implements ActionListener
 	{
 
@@ -373,26 +386,105 @@ public class FlickrPanel extends JFrame
 			if( e.getActionCommand().length() >= 7 && "LANG_".equals( e.getActionCommand().substring( 0, 5 ) ) )
 			{
 				String newLocCode = e.getActionCommand().substring( 5 );
-				setCurrentLocale( new Locale( newLocCode ) );
-				initTexts();
+				Localizer.getLocalizer().setLocale( newLocCode );
 			}
 			else if( e.getActionCommand().equals( "AUTH" ) )
 			{
-				FlickrAuthenticationDialog d = new FlickrAuthenticationDialog();
-				d.setVisible( true );
+				if( ((JMenuItem)e.getSource()).getText().equals( labels.getObject("menu_edit_auth") ) )
+				{
+					FlickrAuthenticationDialog d = new FlickrAuthenticationDialog();
+					d.setVisible( true );
+				}
+				else
+				{
+					prefs.remove( FlickrTestConstants.PREF_FLICKRTOKEN );
+					prefs.remove( FlickrTestConstants.PREF_FLICKRNSID );
+					prefs.remove( FlickrTestConstants.PREF_FLICKRPERMS );
+					prefs.remove( FlickrTestConstants.PREF_FLICKRUNAME );
+					prefs.remove( FlickrTestConstants.PREF_FLICKRFNAME );
+				}
 			}
 		}
 
 	}
-
-	public static Locale getCurrentLocale()
+	
+	public Preferences getPrefs()
 	{
-		return currentLocale;
+		return prefs;
+	}
+	
+	public static Preferences getPreferences()
+	{
+		return Preferences.userNodeForPackage( FlickrPanel.class );
 	}
 
-	public static void setCurrentLocale( Locale currentLocale )
+	@Override
+    public void update( Observable o, Object arg )
+    {
+	    if( o instanceof Localizer && arg instanceof Locale )
+	    {
+	    	//we got a locale change notification
+	    	labels = ResourceBundle.getBundle( "LabelsBundle" );
+			getFetchButton().setText( labels.getString( "fetch" ) );
+			this.setTitle( labels.getString( "title" ) );
+	    }
+    }
+
+	private class MenuLocalizer
 	{
-		FlickrPanel.currentLocale = currentLocale;
-		Locale.setDefault( currentLocale );
+		private Vector<AbstractButton> obs = new Vector<AbstractButton>();
+		
+        public void notifyObservers( Object arg )
+        {
+	        /*
+	         * a temporary array buffer, used as a snapshot of the state of
+	         * current Observers.
+	         */
+	        AbstractButton[] arrLocal;
+
+	        synchronized (this) {
+	            /* We don't want the Observer doing callbacks into
+	             * arbitrary code while holding its own Monitor.
+	             * The code where we extract each Observable from
+	             * the Vector and store the state of the Observer
+	             * needs synchronization, but notifying observers
+	             * does not (should not).  The worst result of any
+	             * potential race-condition here is that:
+	             * 1) a newly-added Observer will miss a
+	             *   notification in progress
+	             * 2) a recently unregistered Observer will be
+	             *   wrongly notified when it doesn't care
+	             */
+	            arrLocal = obs.toArray(new AbstractButton[] {});
+	        }
+
+	        for (int i = arrLocal.length-1; i>=0; i--)
+	            arrLocal[i].setText( "test");
+        }
+
+        public synchronized void addObserver( AbstractButton o )
+        {
+	        if (o == null)
+	            throw new NullPointerException();
+			//only add AbstractButton inheritants. This allows calling setText()
+	        if( o instanceof AbstractButton && !obs.contains( o ))
+	        	obs.addElement(o);
+        }
+
+        public synchronized void deleteObserver( Observer o )
+        {
+	        // TODO Auto-generated method stub
+        }
+
+        public synchronized void deleteObservers()
+        {
+	        // TODO Auto-generated method stub
+        }
+
+        public void notifyObservers()
+        {
+	        // TODO Auto-generated method stub
+        }
+		
 	}
 }
