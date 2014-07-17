@@ -1,0 +1,30 @@
+defaultTasks 'build'
+version = '0.8.5'
+apply plugin: 'java'
+
+repositories {
+   mavenCentral()
+}
+
+sourceSets {
+   main {
+      java {
+         srcDir 'src'
+      }
+      resources {
+         srcDir 'src/resources'
+      }
+   }
+}
+
+jar {
+   manifest {
+      attributes 'Main-Class': 'net.imartin.flickr.FlickrPanel', 'Implementation-Title': project.name,
+      'Implementation-Version': version, 'Implementation-Vendor': 'imartin.net'
+   }
+}
+
+dependencies {
+   testCompile group: 'junit', name: 'junit', version: '4.+'
+}
+

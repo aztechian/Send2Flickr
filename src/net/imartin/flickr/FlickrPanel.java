@@ -146,6 +146,8 @@ public class FlickrPanel extends JFrame implements Observer
 	 */
 	public static void main( String[] args )
 	{
+      System.out.println("Starting " + Package.getPackage("net.imartin.flickr").getImplementationTitle() + ", version " +
+         Package.getPackage("net.imartin.flickr").getImplementationVersion());
 		SwingUtilities.invokeLater( new Runnable()
 		{
 			@Override
